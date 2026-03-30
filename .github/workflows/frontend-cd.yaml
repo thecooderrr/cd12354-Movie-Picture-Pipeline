@@ -79,10 +79,10 @@ jobs:
         working-directory: starter/frontend
     env:
       IMAGE_TAG: ${{ github.sha }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
-      ECR_REPOSITORY: ${{ secrets.ECR_FRONTEND_REPOSITORY }}
-      REACT_APP_MOVIE_API_URL: ${{ secrets.REACT_APP_MOVIE_API_URL }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+      ECR_REPOSITORY: ${{ vars.FRONTEND_ECR_REPOSITORY }}
+      REACT_APP_MOVIE_API_URL: ${{ vars.REACT_APP_MOVIE_API_URL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -111,7 +111,8 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -119,7 +120,10 @@ jobs:
 
       - name: Build docker image with build-arg
         run: |
-          docker build --build-arg REACT_APP_MOVIE_API_URL=$REACT_APP_MOVIE_API_URL -t $ECR_REPOSITORY:$IMAGE_TAG .
+          docker build \
+            --build-arg REACT_APP_MOVIE_API_URL=$REACT_APP_MOVIE_API_URL \
+            -t $ECR_REPOSITORY:$IMAGE_TAG \
+            .
 
       - name: Tag docker image
         run: |
@@ -136,6 +140,6 @@ jobs:
       - name: Deploy frontend to EKS
         working-directory: .
         run: |
-          (Get-Content k8s/frontend-deployment.yaml) -replace 'IMAGE_PLACEHOLDER', '${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_FRONTEND_REPOSITORY }}:${{ github.sha }}' | Set-Content k8s/frontend-deployment.rendered.yaml
+          sed "s|IMAGE_PLACEHOLDER|${{ steps.login-ecr.outputs.registry }}/${{ vars.FRONTEND_ECR_REPOSITORY }}:${{ github.sha }}|g" k8s/frontend-deployment.yaml > k8s/frontend-deployment.rendered.yaml
           kubectl apply -f k8s/frontend-deployment.rendered.yaml
           kubectl apply -f k8s/frontend-service.yaml

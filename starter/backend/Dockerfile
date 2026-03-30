@@ -25,4 +25,4 @@ EXPOSE 5000
 
 USER app
 
-CMD ["uwsgi", "--http", "0.0.0.0:5000", "--wsgi-file", "__init__.py", "--callable", "app"]
+CMD ["flask", "--app", ".", "run", "--host=0.0.0.0", "--port", "5000"]
